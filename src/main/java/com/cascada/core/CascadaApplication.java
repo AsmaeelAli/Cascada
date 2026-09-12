@@ -1,6 +1,6 @@
 package com.cascada.core;
 
-class  Main
+class CascadaApplication
 {
     public static void main( String[] args )
     {
