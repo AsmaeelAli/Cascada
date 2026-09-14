@@ -34,62 +34,92 @@ public class CascadaCLI {
     public void start() {
         printBanner();
 
-        if (!loginOrRegister()) {
-            System.out.println("Exiting Cascada. Goodbye!");
-            return;
-        }
+        boolean appRunning = true;
 
-        boolean running = true;
-        while (running) {
-            printMainMenu();
-            int choice = readInt("Choose an option: ");
-
-            try {
-                switch (choice) {
-                    case 1 -> createTask();
-                    case 2 -> broadcastTask();
-                    case 3 -> viewUnclaimedTasks();
-                    case 4 -> claimTask();
-                    case 5 -> viewMyTasks();
-                    case 6 -> completeTask();
-                    case 7 -> cancelTask();
-                    case 8 -> postponeTask();
-                    case 9 -> viewDueSoonReport();
-                    case 10 -> viewAnalytics();
-                    case 11 -> reminderDispatcher.dispatchDueReminders();
-                    case 0 -> running = false;
-                    default -> System.out.println(">> Invalid option, try again.");
-                }
-            } catch (GlobalException e) {
-                System.out.println(">> Error: " + e.getMessage());
-            } catch (Exception e) {
-                System.out.println(">> Unexpected error: " + e.getMessage());
+        while (appRunning) {
+            if (!loginOrRegister()) {
+                System.out.println("Exiting Cascada. Goodbye!");
+                appRunning = false;
+                break;
             }
 
-            System.out.println();
-        }
+            boolean sessionActive = true;
 
-        System.out.println("Session ended. See you soon, " + currentUser.getName() + "!");
+            while (sessionActive) {
+                printMainMenu();
+                int choice = readInt("Choose an option: ");
+
+                try {
+                    switch (choice) {
+                        case 1 -> createTask();
+                        case 2 -> broadcastTask();
+                        case 3 -> viewUnclaimedTasks();
+                        case 4 -> claimTask();
+                        case 5 -> viewMyTasks();
+                        case 6 -> completeTask();
+                        case 7 -> cancelTask();
+                        case 8 -> postponeTask();
+                        case 9 -> viewDueSoonReport();
+                        case 10 -> viewAnalytics();
+                        case 11 -> reminderDispatcher.dispatchDueReminders();
+                        case 12 -> {
+                            System.out.println(">> Logging out " + currentUser.getName() + "...");
+                            currentUser = null;
+                            sessionActive = false;
+                        }
+                        case 0 -> {
+                            System.out.println("Exiting Cascada. Goodbye!");
+                            sessionActive = false;
+                            appRunning = false;
+                        }
+                        default -> System.out.println(">> Invalid option, try again.");
+                    }
+                } catch (GlobalException e) {
+                    System.out.println(">> Error: " + e.getMessage());
+                } catch (Exception e) {
+                    System.out.println(">> Unexpected error: " + e.getMessage());
+                }
+
+                System.out.println();
+            }
+        }
     }
 
     private boolean loginOrRegister() {
-        System.out.println("1. Register new user");
-        System.out.println("0. Exit");
-        int choice = readInt("Choose: ");
+        while (true) {
+            System.out.println("\n--- Authentication Menu ---");
+            System.out.println("1. Login with Email");
+            System.out.println("2. Register new user");
+            System.out.println("0. Exit Application");
+            int choice = readInt("Choose: ");
 
-        if (choice == 1) {
-            String name = readString("Name: ");
-            String email = readString("Email: ");
-            try {
-                currentUser = userService.registerUser(name, email);
-                System.out.println(">> Welcome, " + currentUser.getName() + "! (User ID: " + currentUser.getId() + ")");
-                return true;
-            } catch (GlobalException e) {
-                System.out.println(">> " + e.getMessage());
+            if (choice == 0) {
                 return false;
             }
+
+            if (choice == 1) {
+                String email = readString("Email: ");
+                try {
+                    currentUser = userService.login(email);
+                    System.out.println(">> Welcome back, " + currentUser.getName() + "! (User ID: " + currentUser.getId() + ")");
+                    return true;
+                } catch (GlobalException e) {
+                    System.out.println(">> Error: " + e.getMessage());
+                }
+            } else if (choice == 2) {
+                String name = readString("Name: ");
+                String email = readString("Email: ");
+                try {
+                    currentUser = userService.registerUser(name, email);
+                    System.out.println(">> Welcome, " + currentUser.getName() + "! (User ID: " + currentUser.getId() + ")");
+                    return true;
+                } catch (GlobalException e) {
+                    System.out.println(">> Registration Error: " + e.getMessage());
+                }
+            } else {
+                System.out.println(">> Invalid choice, please try again.");
+            }
         }
-        return false;
     }
 
     private void createTask() {
@@ -189,6 +219,8 @@ public class CascadaCLI {
 
     private void printMainMenu() {
         System.out.println("--------------------------------");
+        System.out.println("Logged in as: " + currentUser.getName() + " (" + currentUser.getEmail() + ")");
+        System.out.println("--------------------------------");
         System.out.println("1.  Create task (for me)");
         System.out.println("2.  Broadcast task (anyone can claim)");
         System.out.println("3.  View unclaimed tasks");
@@ -200,7 +232,8 @@ public class CascadaCLI {
         System.out.println("9.  Due Soon report (sorted)");
         System.out.println("10. View analytics");
         System.out.println("11. Dispatch due reminders (concurrent)");
-        System.out.println("0.  Exit");
+        System.out.println("12. Logout");
+        System.out.println("0.  Exit Application");
         System.out.println("--------------------------------");
     }
 
