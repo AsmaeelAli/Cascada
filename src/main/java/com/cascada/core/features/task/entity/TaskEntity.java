@@ -2,6 +2,7 @@ package com.cascada.core.features.task.entity;
 
 import com.cascada.core.domain.enums.Priority;
 import com.cascada.core.domain.enums.TaskStatus;
+import com.cascada.core.domain.exception.InvalidTaskStateException;
 import com.cascada.core.features.reminder.entity.ReminderEntity;
 import com.cascada.core.features.task.states.TaskState;
 import com.cascada.core.features.task.states.TodoState;
@@ -20,7 +21,7 @@ public class TaskEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
+    @JoinColumn(name = "owner_id", nullable = true)
     private UserEntity owner;
 
     @Column(nullable = false)
@@ -61,11 +62,23 @@ public class TaskEntity {
         this.reminderEntities.add(ReminderEntity.createDefault(this, dueDate));
     }
 
+    // ===== جديد: إنشاء مهمة Broadcast بدون owner محدد =====
+    public static TaskEntity createBroadcast(String title, LocalDateTime dueDate, Priority priority) {
+        TaskEntity task = new TaskEntity();
+        task.owner = null;
+        task.title = task.validateTitle(title);
+        task.dueDate = dueDate;
+        task.priority = priority;
+        task.createdAt = LocalDateTime.now();
+        task.state = new TodoState();
+        task.status = task.state.status();
+        return task;
+    }
+
     @PostLoad
     private void rebuildState() {
         this.state = TaskState.of(this.status);
     }
-
 
     public void markInProgress() {
         this.state = state.markInProgress(this);
@@ -92,11 +105,20 @@ public class TaskEntity {
         syncStatus();
     }
 
+    // ===== جديد: تعيين صاحب لمهمة Broadcast (عملية الـ Claim) =====
+    public void assignOwner(UserEntity newOwner) {
+        if (this.owner != null) {
+            throw new InvalidTaskStateException(
+                    "Task '" + this.title + "' is already claimed by " + this.owner.getName()
+            );
+        }
+        this.owner = newOwner;
+        this.reminderEntities.add(ReminderEntity.createDefault(this, this.dueDate));
+    }
+
     private void syncStatus() {
         this.status = state.status();
     }
-
-    // ===== Package-private helpers — تُستدعى فقط من كائنات TaskState =====
 
     public void applyCompletion() {
         this.completedAt = LocalDateTime.now();
@@ -106,8 +128,6 @@ public class TaskEntity {
         this.dueDate = newDueDate;
         this.reminderEntities.add(ReminderEntity.createDefault(this, newDueDate));
     }
-
-    // ===== Getters =====
 
     public Long getId() { return id; }
     public UserEntity getOwner() { return owner; }
