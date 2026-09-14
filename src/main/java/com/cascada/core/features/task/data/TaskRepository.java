@@ -17,4 +17,10 @@ public class TaskRepository extends JpaRepository<TaskEntity, Long> {
                 .setParameter("ownerId", ownerId)
                 .getResultList();
     }
+
+    public List<TaskEntity> findUnclaimed() {
+        String jpql = "SELECT t FROM TaskEntity t WHERE t.owner IS NULL";
+        return entityManager.createQuery(jpql, TaskEntity.class)
+                .getResultList();
+    }
 }

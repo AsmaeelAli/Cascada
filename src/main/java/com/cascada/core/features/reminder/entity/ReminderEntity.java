@@ -28,7 +28,6 @@ public class ReminderEntity {
     private boolean sent = false;
 
     protected ReminderEntity() {
-        // JPA فقط
     }
 
     private ReminderEntity(TaskEntity task, LocalDateTime triggerTime, NotificationChannel channel) {
@@ -39,7 +38,7 @@ public class ReminderEntity {
 
     public static ReminderEntity createDefault(TaskEntity task, LocalDateTime dueDate) {
         LocalDateTime triggerTime = dueDate.minusHours(24);
-        return new ReminderEntity(task, triggerTime, NotificationChannel.EMAIL);
+        return new ReminderEntity(task, triggerTime, NotificationChannel.PUSH);
     }
 
     public void markSent() {
